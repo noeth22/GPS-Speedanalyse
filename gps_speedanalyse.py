@@ -1,5 +1,5 @@
 """
-GPS Speedanalyse mit GUI für Datei-Auswahl
+GPS Speedanalyse 
 Autor: Michael Nöthen
 """
 
@@ -50,7 +50,7 @@ class GPSAnalyzerApp:
             self.listbox.insert(tk.END, file)
 
     def plot_selected_files(self):
-        """Liest ausgewählte Dateien ein und plottet die Daten."""
+        """Liest ausgewählte Dateien ein, wählt die längste Zeitachse als Referenz und plottet die Daten."""
         selected_indices = self.listbox.curselection()
         if not selected_indices:
             messagebox.showwarning("Warnung", "Keine Dateien ausgewählt!")
@@ -58,20 +58,40 @@ class GPSAnalyzerApp:
 
         selected_files = [self.files[i] for i in selected_indices]
 
-        plt.figure(figsize=(10, 5))
-
+        # Lade alle ausgewählten Dateien
+        data_dict = {}
         for file in selected_files:
             filepath = os.path.join(self.folder_path, file)
             df = self.import_data(filepath)
             if df is not None:
-                time, speed = self.extract_data(df)
+                time, speed = self.extract_data(df)  # Jetzt wird die Methode innerhalb der Klasse aufgerufen
                 if time is not None and speed is not None:
-                    plt.plot(time, speed, label=file)
+                    data_dict[file] = (time, speed)
+
+        if not data_dict:
+            messagebox.showwarning("Fehler", "Keine gültigen Daten zum Plotten gefunden!")
+            return
+
+        # Bestimme die Datei mit den meisten Zeitpunkten als Referenz
+        reference_file = max(data_dict.keys(), key=lambda k: len(data_dict[k][0]))
+        reference_time = data_dict[reference_file][0]
+
+        print(f"Referenz-Zeitachse: {reference_file} mit {len(reference_time)} Einträgen.")
+
+        # Plotte die Daten mit interpolierter Zeitachse
+        plt.figure(figsize=(10, 5))
+
+        for file, (time, speed) in data_dict.items():
+            if file != reference_file:
+                # Interpolierte Geschwindigkeitswerte auf die Referenz-Zeitachse umrechnen
+                speed = np.interp(reference_time, time, speed)
+
+            plt.plot(reference_time, speed, label=file)
 
         # Plot konfigurieren
-        plt.xlabel("Time (s)")
+        plt.xlabel("Time (s) - Normalisiert")
         plt.ylabel("Speed (m/s)")
-        plt.title("Vergleich der GPS-Daten")
+        plt.title("Vergleich der GPS-Daten mit gemeinsamer Zeitachse")
         plt.legend()
         plt.grid()
         plt.show()
@@ -87,10 +107,17 @@ class GPSAnalyzerApp:
             return None
 
     def extract_data(self, df):
-        """Extrahiert Zeit- und Geschwindigkeitswerte und interpoliert fehlende Werte."""
+        """Extrahiert Zeit- und Geschwindigkeitswerte und konvertiert sie zu numerischen Typen."""
         try:
-            time = df['Time']
-            speed = df['Speed'].interpolate(method='polynomial', order=2)  # Interpoliert NaN-Werte
+            df['Time'] = pd.to_numeric(df['Time'], errors='coerce')  # Konvertiere Time zu float
+            df['Speed'] = pd.to_numeric(df['Speed'], errors='coerce')  # Konvertiere Speed zu float
+            df['Speed'] = df['Speed'].interpolate(method='polynomial', order=2)  # Interpoliert NaN-Werte
+
+            # Entferne Zeilen mit NaN-Werten nach der Umwandlung
+            df = df.dropna(subset=['Time', 'Speed'])
+
+            time = df['Time'].to_numpy()
+            speed = df['Speed'].to_numpy()
             return time, speed
         except KeyError as e:
             print(f"Fehlende Spalte: {e}")
