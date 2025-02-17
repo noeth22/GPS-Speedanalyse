@@ -94,7 +94,7 @@ class GPSAnalyzerApp:
 
         self.ax.set_xlabel("Zeit (s)")
         self.ax.set_ylabel("Speed (km/h)")
-        self.ax.set_title("Vergleich der GPS-Daten mit interaktiver Verschiebung")
+        self.ax.set_title("Speedanalyse")
         self.ax.legend()
         self.ax.grid()
 
