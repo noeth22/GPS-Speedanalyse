@@ -4,11 +4,11 @@ Autor: Michael Nöthen
 """
 
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
 import os
 import tkinter as tk
 from tkinter import filedialog, messagebox
+from matplotlib.widgets import Slider
 
 class GPSAnalyzerApp:
     def __init__(self, root):
@@ -29,6 +29,8 @@ class GPSAnalyzerApp:
 
         self.folder_path = ""
         self.files = []
+        self.data_dict = {}  # Speichert Daten der Athleten
+        self.offsets = {}  # Speichert die aktuellen Verschiebungen
 
     def select_folder(self):
         """Wählt einen Ordner und listet alle CSV-Dateien auf."""
@@ -57,44 +59,68 @@ class GPSAnalyzerApp:
             return
 
         selected_files = [self.files[i] for i in selected_indices]
+        self.data_dict.clear()
+        self.offsets.clear()
 
         # Lade alle ausgewählten Dateien
-        data_dict = {}
         for file in selected_files:
             filepath = os.path.join(self.folder_path, file)
             df = self.import_data(filepath)
             if df is not None:
-                time, speed = self.extract_data(df)  # Jetzt wird die Methode innerhalb der Klasse aufgerufen
+                time, speed = self.extract_data(df)
                 if time is not None and speed is not None:
-                    data_dict[file] = (time, speed)
+                    self.data_dict[file] = (time, speed)
+                    self.offsets[file] = 0  # Initial kein Offset
 
-        if not data_dict:
+        if not self.data_dict:
             messagebox.showwarning("Fehler", "Keine gültigen Daten zum Plotten gefunden!")
             return
 
-        # Bestimme die Datei mit den meisten Zeitpunkten als Referenz
-        reference_file = max(data_dict.keys(), key=lambda k: len(data_dict[k][0]))
-        reference_time = data_dict[reference_file][0]
+        # Initialisiere das interaktive Plot-Fenster
+        self.create_interactive_plot()
 
-        print(f"Referenz-Zeitachse: {reference_file} mit {len(reference_time)} Einträgen.")
+    def create_interactive_plot(self):
+        """Erstellt das Matplotlib-Fenster mit Slidern zur Verschiebung der X-Achse."""
+        self.fig, self.ax = plt.subplots(figsize=(10, 5))
+        plt.subplots_adjust(bottom=0.3)  # Platz für die Slider
 
-        # Plotte die Daten mit interpolierter Zeitachse
-        plt.figure(figsize=(10, 5))
+        self.lines = {}  # Speichert die geplotteten Linien für spätere Updates
+        self.sliders = {}  # Speichert die Slider für jede Datei
 
-        for file, (time, speed) in data_dict.items():
-            if file != reference_file:
-                # Interpolierte Geschwindigkeitswerte auf die Referenz-Zeitachse umrechnen
-                speed = np.interp(reference_time, time, speed)
+        # Plotte initial die Daten
+        for file, (time, speed) in self.data_dict.items():
+            line, = self.ax.plot(time, speed, label=file)
+            self.lines[file] = line
 
-            plt.plot(reference_time, speed, label=file)
+        self.ax.set_xlabel("Zeit (s)")
+        self.ax.set_ylabel("Speed (km/h)")
+        self.ax.set_title("Vergleich der GPS-Daten mit interaktiver Verschiebung")
+        self.ax.legend()
+        self.ax.grid()
 
-        # Plot konfigurieren
-        plt.xlabel("Time (s) - Normalisiert")
-        plt.ylabel("Speed (m/s)")
-        plt.title("Vergleich der GPS-Daten mit gemeinsamer Zeitachse")
-        plt.legend()
-        plt.grid()
+        # Erstelle Slider für jedes File
+        slider_ax_start = 0.15
+        for i, file in enumerate(self.data_dict.keys()):
+            slider_ax = plt.axes([0.1, slider_ax_start - i * 0.05, 0.65, 0.03])  # Position der Slider
+            slider = Slider(slider_ax, file, -5.0, 5.0, valinit=0, valstep=0.1)
+            slider.on_changed(lambda val, f=file: self.update_plot(f, val))
+            self.sliders[file] = slider
+
         plt.show()
+
+    def update_plot(self, file, offset):
+        """Aktualisiert den Plot, wenn ein Slider bewegt wird."""
+        self.offsets[file] = offset
+        time, speed = self.data_dict[file]
+
+        # Verschiebe die Zeitachse
+        new_time = time + offset
+        self.lines[file].set_xdata(new_time)
+
+        # Neuzeichnen
+        self.ax.relim()
+        self.ax.autoscale_view()
+        self.fig.canvas.draw_idle()
 
     def import_data(self, filepath):
         """Lädt eine CSV-Datei ein und gibt sie als DataFrame zurück."""
@@ -112,8 +138,6 @@ class GPSAnalyzerApp:
             df['Time'] = pd.to_numeric(df['Time'], errors='coerce')  # Konvertiere Time zu float
             df['Speed'] = pd.to_numeric(df['Speed'], errors='coerce')  # Konvertiere Speed zu float
             df['Speed'] = df['Speed'].interpolate(method='polynomial', order=2)  # Interpoliert NaN-Werte
-
-            # Entferne Zeilen mit NaN-Werten nach der Umwandlung
             df = df.dropna(subset=['Time', 'Speed'])
 
             time = df['Time'].to_numpy()
