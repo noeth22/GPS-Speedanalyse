@@ -177,7 +177,9 @@ class GPSAnalyzerApp:
             sync_speed = np.interp(min_sync_time, new_time, speed)
             speed = speed - sync_speed
 
-            plt.plot(new_time, speed, label=file)
+            # Begrenze die Zeitachse auf die letzten 5 Sekunden vor dem Sync-Punkt und alles danach
+            mask = (new_time >= min_sync_time - 5)
+            plt.plot(new_time[mask], speed[mask], label=file)
         
         # Füge eine vertikale Linie am Synchronisationszeitpunkt hinzu
         plt.axvline(x=min_sync_time, color='red', linestyle='--', label='Synchronisationspunkt')
