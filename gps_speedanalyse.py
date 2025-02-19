@@ -141,9 +141,10 @@ class GPSAnalyzerApp:
         new_time = time + offset
         self.lines[file].set_xdata(new_time)
 
-        # Setze Geschwindigkeit am Synchronisationspunkt auf 0
+        # Bestimme den Geschwindigkeitswert am neuen Synchronisationszeitpunkt
         sync_index = np.argmin(abs(new_time - new_time[0]))
-        speed = speed - speed[sync_index]
+        sync_speed = np.interp(new_time[0], new_time, speed)
+        speed = speed - sync_speed
 
         # Plot neu skalieren und aktualisieren
         self.ax.relim()
@@ -170,15 +171,15 @@ class GPSAnalyzerApp:
         for file, (time, speed) in self.data_dict.items():
             offset = min_sync_time - self.sync_times[file]
             new_time = time + offset
-            self.lines[file].set_xdata(new_time)
 
-            # Setze Geschwindigkeit am Synchronisationspunkt auf 0
+            # Bestimme den Geschwindigkeitswert am Synchronisationszeitpunkt
             sync_index = np.argmin(abs(new_time - min_sync_time))
-            speed = speed - speed[sync_index]
+            sync_speed = np.interp(min_sync_time, new_time, speed)
+            speed = speed - sync_speed
 
             plt.plot(new_time, speed, label=file)
-
-        # Füge vertikale Linie am Synchronisationszeitpunkt hinzu
+        
+        # Füge eine vertikale Linie am Synchronisationszeitpunkt hinzu
         plt.axvline(x=min_sync_time, color='red', linestyle='--', label='Synchronisationspunkt')
 
         # Plot-Konfiguration
