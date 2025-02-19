@@ -141,6 +141,10 @@ class GPSAnalyzerApp:
         new_time = time + offset
         self.lines[file].set_xdata(new_time)
 
+        # Setze Geschwindigkeit am Synchronisationspunkt auf 0
+        sync_index = np.argmin(abs(new_time - new_time[0]))
+        speed = speed - speed[sync_index]
+
         # Plot neu skalieren und aktualisieren
         self.ax.relim()
         self.ax.autoscale_view()
@@ -154,25 +158,36 @@ class GPSAnalyzerApp:
         except ValueError:
             messagebox.showwarning("Fehler", f"Ungültige Eingabe für {file}. Bitte eine Zahl eingeben.")
 
-    def synchronize_plots(self, event):
-        """Verschiebt alle Graphen so, dass sie an den eingegebenen Zeitstempeln übereinander liegen."""
+    def synchronize_plots(self, event=None):
+        """Synchronisiert die Datenreihen und setzt die Geschwindigkeiten auf Differenzen."""
+        if not self.data_dict:
+            messagebox.showwarning("Fehler", "Keine Daten zum Synchronisieren verfügbar!")
+            return
+
         min_sync_time = min(self.sync_times.values())
-
-        for file, sync_time in self.sync_times.items():
-            offset = min_sync_time - sync_time
-            self.offsets[file] = offset
-
-            time, speed = self.data_dict[file]
+        plt.figure(figsize=(10, 6))
+        
+        for file, (time, speed) in self.data_dict.items():
+            offset = min_sync_time - self.sync_times[file]
             new_time = time + offset
             self.lines[file].set_xdata(new_time)
 
             # Setze Geschwindigkeit am Synchronisationspunkt auf 0
-            speed -= speed[np.argmin(abs(new_time - min_sync_time))]
+            sync_index = np.argmin(abs(new_time - min_sync_time))
+            speed = speed - speed[sync_index]
 
-        # Neuzeichnen
-        self.ax.relim()
-        self.ax.autoscale_view()
-        self.fig.canvas.draw_idle()
+            plt.plot(new_time, speed, label=file)
+
+        # Füge vertikale Linie am Synchronisationszeitpunkt hinzu
+        plt.axvline(x=min_sync_time, color='red', linestyle='--', label='Synchronisationspunkt')
+
+        # Plot-Konfiguration
+        plt.xlabel("Zeit (s) - Normalisiert")
+        plt.ylabel("Geschwindigkeitsdifferenz (m/s)")
+        plt.title("Vergleich der GPS-Daten mit gemeinsamer Zeitachse")
+        plt.legend()
+        plt.grid()
+        plt.show()
 
     def import_data(self, filepath):
         """Lädt eine CSV-Datei ein und gibt sie als DataFrame zurück."""
@@ -187,7 +202,7 @@ class GPSAnalyzerApp:
         """Extrahiert Zeit- und Geschwindigkeitswerte."""
 
         if 'Time' not in df.columns or 'Speed' not in df.columns:
-            print("❌ Fehler: 'Time' und/oder 'Speed' fehlen!")
+            print("Fehler: 'Time' und/oder 'Speed' fehlen!")
             return np.array([]), np.array([])
         
         df['Time'] = pd.to_numeric(df['Time'], errors='coerce')
