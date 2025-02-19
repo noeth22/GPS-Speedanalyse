@@ -128,6 +128,25 @@ class GPSAnalyzerApp:
 
         plt.show()
 
+    def update_plot(self, file, offset):
+        """Aktualisiert den Plot, wenn ein Slider bewegt wird."""
+        if file not in self.data_dict:
+            print(f"⚠️ Fehler: Datei {file} nicht in self.data_dict!")
+            return
+
+        self.offsets[file] = offset
+        time, speed = self.data_dict[file]
+
+        # Verschiebe die Zeitachse um den Offset
+        new_time = time + offset
+        self.lines[file].set_xdata(new_time)
+
+        # Plot neu skalieren und aktualisieren
+        self.ax.relim()
+        self.ax.autoscale_view()
+        self.fig.canvas.draw_idle()
+
+
     def update_sync_time(self, file, text):
         """Aktualisiert die eingegebene Synchronisationszeit."""
         try:
