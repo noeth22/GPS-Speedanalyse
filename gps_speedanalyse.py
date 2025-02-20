@@ -35,6 +35,14 @@ class GPSAnalyzerApp:
         self.sync_entries = {}  # Eingabefelder für Synchronisationszeiten
         self.sync_times = {}  # Speichert die Synchronisationszeiten
 
+        # Hinweis-Label für Dateiauswahl
+        self.sync_label = tk.Label(root, 
+            text="1. Ordner wählen, der die Dateien mit Speeddaten enthält\n"
+                "2. Gewünschte Dateien auswählen und Vergleichen klicken", 
+                fg="black", 
+                font=(None, 8))
+        self.sync_label.pack(pady=(0, 10))
+
     def select_folder(self):
         """Wählt einen Ordner und listet alle CSV-Dateien auf."""
         self.folder_path = filedialog.askdirectory()
@@ -99,7 +107,7 @@ class GPSAnalyzerApp:
             self.lines[file] = line
 
         self.ax.set_xlabel("Zeit (s)")
-        self.ax.set_ylabel("Speed (km/h)")
+        self.ax.set_ylabel("Geschwindigkeit (km/h)")
         self.ax.set_title("Speedanalyse mit Synchronisation")
         self.ax.legend()
         self.ax.grid()
@@ -126,12 +134,19 @@ class GPSAnalyzerApp:
         sync_button = Button(sync_ax, "Synchronisieren")
         sync_button.on_clicked(self.synchronize_plots)
 
+        # Füge einen Hinweistext unterhalb der Schieberegler hinzu
+        plt.text(-5, 0.1, 
+                    "1. Gewünschte Synchronisationspunkte mithilfe der Schwieberegler oder\n"
+                    "    durch Platzieren des Cursors (Datenpunkt wird rechts unten angezeigt) bestimmen \n"
+                    "2. Synchronisationspunkte in die Textfelder eintragen und auf 'Synchronisieren' klicken",
+                    fontsize=8, color='black', ha='left')
+
         plt.show()
 
     def update_plot(self, file, offset):
         """Aktualisiert den Plot, wenn ein Slider bewegt wird."""
         if file not in self.data_dict:
-            print(f"⚠️ Fehler: Datei {file} nicht in self.data_dict!")
+            print(f"Fehler: Datei {file} nicht in self.data_dict!")
             return
 
         self.offsets[file] = offset
