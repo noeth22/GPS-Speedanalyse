@@ -185,9 +185,9 @@ class GPSAnalyzerApp:
         plt.axvline(x=min_sync_time, color='red', linestyle='--', label='Synchronisationspunkt')
 
         # Plot-Konfiguration
-        plt.xlabel("Zeit (s) - Normalisiert")
-        plt.ylabel("Geschwindigkeitsdifferenz (m/s)")
-        plt.title("Vergleich der GPS-Daten mit gemeinsamer Zeitachse")
+        plt.xlabel("Zeit (s)")
+        plt.ylabel("Geschwindigkeitsdifferenz zu Sync-Zeitpunkt (m/s)")
+        plt.title("GPS Speedanalyse")
         plt.legend()
         plt.grid()
         plt.show()
